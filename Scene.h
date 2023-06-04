@@ -1,5 +1,6 @@
 #include <QtWidgets>
 #include <vector>
+#include <QMouseEvent>
 using namespace std;
 
 #define Idle 0
@@ -7,6 +8,7 @@ using namespace std;
 #define Attack 2
 
 #define GunSize 10
+#define FireSize 10
 
 #define HorizonNum 8
 #define VerticalNum 6
@@ -25,7 +27,17 @@ public:
     int size;
 };
 
-// 接着做: 画水枪
+class Fire : public QWidget {
+public:
+    Fire(QWidget *parent = nullptr) : QWidget(parent) {
+        size = FireSize;
+    }
+
+public:
+    int X;
+    int Y;
+    int size;
+};
 
 class Scene : public QWidget {
 public:
@@ -100,6 +112,8 @@ public:
             createWaterGun(x2, y);
         }
         
+        // track mouse
+        setMouseTracking(true);
     }
 
     ~Scene() {
@@ -145,9 +159,34 @@ protected:
             WaterGun* waterGun = waterGuns[i];
             painter.drawEllipse(waterGun->X, waterGun->Y, waterGun->size, waterGun->size);
         }
+
+        painter.setBrush(Qt::red);
+        painter.setPen(Qt::yellow);
+        for(int i = 0; i < (int)fires.size(); i++) {
+            Fire* fire = fires[i];
+            painter.drawEllipse(fire->X, fire->Y, fire->size, fire->size);
+        }
+    }
+
+    void mousePressEvent(QMouseEvent *event) override {
+        if(event->button() == Qt::LeftButton){
+            int x = event->position().x(), y = event->position().y();
+            if(topLeftRect->contains(x, y) || topRightRect->contains(x, y) || \
+                bottomLeftRect->contains(x, y) || bottomRightRect->contains(x, y))
+                    return;
+            createFire(x, y);
+            update();
+        }
     }
 
 private:
+    void createFire(int x, int y) {
+        Fire* fire = new Fire(this);
+        fire->X = x;
+        fire->Y = y;
+        fires.push_back(fire);
+    }
+
     void createWaterGun(int x, int y) { 
         WaterGun* waterGun = new WaterGun(this);
         waterGun->X = x;
@@ -168,5 +207,8 @@ private:
     QRect *bottomSensor;
     QRect *leftSensor;
     QRect *rightSensor;
+
     vector<WaterGun*> waterGuns;  // 水枪对象数组
+    vector<Fire*> fires;  // 火焰对象数组
+
 };
