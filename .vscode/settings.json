@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "new": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "deque": "cpp",
+        "string": "cpp",
+        "cmath": "cpp",
+        "qmessagebox": "cpp"
     }
 }
