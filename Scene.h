@@ -23,7 +23,7 @@ using namespace std;
 #define ProcessorOffsetV 50
 #define ProcessorOffsetH 100
 
-#define SendRange 200
+#define SendRange 230
 #define AttackRange 150
 
 // ##################################
