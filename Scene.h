@@ -5,6 +5,7 @@
 #include <QLine>
 #include <QPen>
 #include <cmath>
+#include <QMessageBox>
 using namespace std;
 
 // ############## Edit ##############
@@ -22,13 +23,12 @@ using namespace std;
 #define ProcessorOffsetH 100
 
 #define sendRange 200
-#define detectRange 300
+#define detectRange 100
 
 // ##################################
 
 #define Idle 0
-#define Detect 1
-#define Attack 2
+#define Attack 1
 
 class WaterGun : public QWidget {
 public:
@@ -59,6 +59,7 @@ public:
 
     vector<QLine*> detectLines;
     vector<QLine*> infoLines;
+    vector<QLine*> commandLines;
     vector<QLine*> attackLines;
 };
 
@@ -106,14 +107,14 @@ public:
         for (int i = 0; i < HorizonNum; i++) {
             int x = topLeftRect->left() + i * stepSize;
             int y1 = topLeftRect->bottom();
-            int y2 = bottomLeftRect->top();
+            int y2 = bottomLeftRect->top() - GunSize;
             createWaterGun(x, y1, 1);
             createWaterGun(x, y2, 3);
         }
         for (int i = 0; i < HorizonNum; i++) {
             int x = topRightRect->left() + (i + 1) * stepSize - GunSize;
             int y1 = topRightRect->bottom();
-            int y2 = bottomRightRect->top();
+            int y2 = bottomRightRect->top() - GunSize;
             createWaterGun(x, y1, 2);
             createWaterGun(x, y2, 4);
         }
@@ -121,14 +122,14 @@ public:
         for (int i = 0; i < VerticalNum; i++) {
             int y = topLeftRect->top() + i * stepSize;
             int x1 = topLeftRect->right();
-            int x2 = topRightRect->left();
+            int x2 = topRightRect->left() - GunSize;
             createWaterGun(x1, y, 1);
             createWaterGun(x2, y, 2);
         }
         for (int i = 0; i < VerticalNum; i++) {
             int y = bottomLeftRect->top() + (i + 1) * stepSize - GunSize;
             int x1 = bottomLeftRect->right();
-            int x2 = bottomRightRect->left();
+            int x2 = bottomRightRect->left() - GunSize;
             createWaterGun(x1, y, 3);
             createWaterGun(x2, y, 4);
         }
@@ -222,6 +223,18 @@ protected:
                 painter.drawLine(*line);
             }
         }
+
+        // 画水枪射击线
+        for(int i = 0; i < (int)fires.size(); i++) {
+            Fire* fire = fires[i];
+            QPen pen;
+            pen.setWidth(2);
+            pen.setColor(QColor(156, 220, 255));
+            painter.setPen(pen);
+            for(auto line : fire->attackLines) {
+                painter.drawLine(*line);
+            }
+        }
     }
 
     double dis(double x1, double y1, double x2, double y2) {
@@ -249,6 +262,37 @@ protected:
         }
         QLine *line = new QLine(x1, y1, processor->x() + ProcessorWidth / 2, processor->y() + ProcessorHeight / 2);
         fire->infoLines.push_back(line);
+    }
+
+    // 水枪是否被墙壁挡住
+    bool isLineRectOverlap(const QLineF& line, const QRectF& rect) {
+        QLineF topEdge(rect.topLeft(), rect.topRight());
+        QLineF bottomEdge(rect.bottomLeft(), rect.bottomRight());
+        QLineF leftEdge(rect.topLeft(), rect.bottomLeft());
+        QLineF rightEdge(rect.topRight(), rect.bottomRight());
+        return (line.intersects(topEdge, nullptr) == 1) || (line.intersects(bottomEdge, nullptr) == 1)||
+            (line.intersects(leftEdge, nullptr) == 1) || (line.intersects(rightEdge, nullptr) == 1);
+    }
+
+    void putFire(Fire *fire) {
+        double x1 = fire->X + FireSize / 2, y1 = fire->Y + FireSize / 2;
+        for(WaterGun *waterGun : waterGuns) {
+            double x2 = waterGun->X + GunSize / 2, y2 = waterGun->Y + GunSize / 2;
+            if(dis(x1, y1, x2, y2) < detectRange && waterGun->state == Idle) {
+                QLineF lineF = QLineF(x1, y1, x2, y2);
+                QRectF topLeftRectF = QRectF(topLeftRect->x(), topLeftRect->y(), topLeftRect->width(), topLeftRect->height());
+                QRectF topRightRectF = QRectF(topRightRect->x(), topRightRect->y(), topRightRect->width(), topRightRect->height());
+                QRectF bottomLeftRectF = QRectF(bottomLeftRect->x(), bottomLeftRect->y(), bottomLeftRect->width(), bottomLeftRect->height());
+                QRectF bottomRightRectF = QRectF(bottomRightRect->x(), bottomRightRect->y(), bottomRightRect->width(), bottomRightRect->height());
+                if(isLineRectOverlap(lineF, topLeftRectF) || isLineRectOverlap(lineF, topRightRectF) || \
+                    isLineRectOverlap(lineF, bottomLeftRectF) || isLineRectOverlap(lineF, bottomRightRectF)) {
+                        continue;
+                }
+                QLine *line = new QLine(x1, y1, x2, y2);
+                waterGun->state = Attack;
+                fire->attackLines.push_back(line);
+            }
+        }
     }
 
     // 红外传感器探测
@@ -296,6 +340,7 @@ protected:
                     return;
             Fire *fire = createFire(x, y);
             detectFire(fire);
+            putFire(fire);
             update();
         }
     }
