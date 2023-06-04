@@ -5,6 +5,7 @@
         "deque": "cpp",
         "string": "cpp",
         "cmath": "cpp",
-        "qmessagebox": "cpp"
+        "qmessagebox": "cpp",
+        "string_view": "cpp"
     }
 }

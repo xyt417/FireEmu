@@ -482,7 +482,8 @@ protected:
     void mousePressEvent(QMouseEvent *event) override {
         // 鼠标左键点击时，创建火焰对象
         if(event->button() == Qt::LeftButton){
-            int x = event->position().x(), y = event->position().y();
+            int x = event->x();
+            int y = event->y();
             if(topLeftRect->contains(x, y) || topRightRect->contains(x, y) || \
                 bottomLeftRect->contains(x, y) || bottomRightRect->contains(x, y))
                     return;
