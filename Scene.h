@@ -1,24 +1,31 @@
 #include <QtWidgets>
+#include <vector>
+using namespace std;
 
 #define Idle 0
 #define Detect 1
 #define Attack 2
 
-#define CircleSize 10
+#define GunSize 10
+
+#define HorizonNum 8
+#define VerticalNum 6
 
 class WaterGun : public QWidget {
 public:
     WaterGun(QWidget *parent = nullptr) : QWidget(parent) {
-        size = CircleSize;
+        size = GunSize;
         state = Idle;
     }
+
 public:
     int X;
     int Y;
     int state;
-
     int size;
 };
+
+// 接着做: 画水枪
 
 class Scene : public QWidget {
 public:
@@ -57,6 +64,46 @@ public:
         bottomSensor = new QRect(centerX - sensorSize / 2, height() - sensorSize, sensorSize, sensorSize);  // 创建下端小矩形区域
         leftSensor = new QRect(0, centerY - sensorSize / 2, sensorSize, sensorSize);  // 创建左端小矩形区域
         rightSensor = new QRect(width() - sensorSize, centerY - sensorSize / 2, sensorSize, sensorSize);  // 创建右端小矩形区域
+
+        // 创建水枪对象并保存在数组中
+
+        // 在矩形边界上均匀绘制水枪
+        int stepSize = (centerX - corridorWidth / 2) / HorizonNum;  // 横向边界上的步长
+        for (int i = 0; i < HorizonNum; i++) {
+            int x = topLeftRect->left() + i * stepSize;
+            int y1 = topLeftRect->bottom();
+            int y2 = bottomLeftRect->top();
+            createWaterGun(x, y1);
+            createWaterGun(x, y2);
+        }
+        for (int i = 0; i < HorizonNum; i++) {
+            int x = topRightRect->left() + (i + 1) * stepSize - GunSize;
+            int y1 = topRightRect->bottom();
+            int y2 = bottomRightRect->top();
+            createWaterGun(x, y1);
+            createWaterGun(x, y2);
+        }
+
+        stepSize = (centerY - corridorWidth / 2) / VerticalNum;  // 纵向边界上的步长
+        for (int i = 0; i < VerticalNum; i++) {
+            int y = topLeftRect->top() + i * stepSize;
+            int x1 = topLeftRect->right();
+            int x2 = topRightRect->left();
+            createWaterGun(x1, y);
+            createWaterGun(x2, y);
+        }
+        for (int i = 0; i < VerticalNum; i++) {
+            int y = bottomLeftRect->top() + (i + 1) * stepSize - GunSize;
+            int x1 = bottomLeftRect->right();
+            int x2 = bottomRightRect->left();
+            createWaterGun(x1, y);
+            createWaterGun(x2, y);
+        }
+        
+    }
+
+    ~Scene() {
+
     }
 
 protected:
@@ -90,9 +137,25 @@ protected:
         painter.drawRect(*bottomSensor);
         painter.drawRect(*leftSensor);
         painter.drawRect(*rightSensor);
+
+        // 绘制水枪
+        painter.setBrush(Qt::transparent);
+        painter.setPen(Qt::blue);
+        for (int i = 0; i < (int)waterGuns.size(); i++) {
+            WaterGun* waterGun = waterGuns[i];
+            painter.drawEllipse(waterGun->X, waterGun->Y, waterGun->size, waterGun->size);
+        }
     }
 
-public:
+private:
+    void createWaterGun(int x, int y) { 
+        WaterGun* waterGun = new WaterGun(this);
+        waterGun->X = x;
+        waterGun->Y = y;
+        waterGuns.push_back(waterGun);
+    }
+
+private:
     QRect *topLeftRect;
     QRect *topRightRect;
     QRect *bottomLeftRect;
@@ -105,4 +168,5 @@ public:
     QRect *bottomSensor;
     QRect *leftSensor;
     QRect *rightSensor;
+    vector<WaterGun*> waterGuns;  // 水枪对象数组
 };
