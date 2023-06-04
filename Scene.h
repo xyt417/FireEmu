@@ -187,10 +187,13 @@ protected:
         painter.drawRect(*rightSensor);
 
         // 绘制水枪
-        painter.setBrush(Qt::transparent);
         painter.setPen(Qt::blue);
         for (int i = 0; i < (int)waterGuns.size(); i++) {
             WaterGun* waterGun = waterGuns[i];
+            if(waterGun->state == Attack)
+                painter.setBrush(QColor(50, 160, 67));
+            else if(waterGun->state == Idle)
+                painter.setBrush(Qt::transparent);
             painter.drawEllipse(waterGun->X, waterGun->Y, waterGun->size, waterGun->size);
         }
 
@@ -206,7 +209,7 @@ protected:
         for(int i = 0; i < (int)fires.size(); i++) {
             Fire* fire = fires[i];
             QPen pen;
-            pen.setWidth(1);
+            pen.setWidth(2);
             pen.setStyle(Qt::CustomDashLine);
             pen.setDashPattern({7, 3}); 
             pen.setColor(Qt::red);
@@ -220,7 +223,7 @@ protected:
         for(int i = 0; i < (int)fires.size(); i++) {
             Fire* fire = fires[i];
             QPen pen;
-            pen.setWidth(1);
+            pen.setWidth(2);
             pen.setStyle(Qt::CustomDashLine);
             pen.setDashPattern({7, 3}); 
             pen.setColor(QColor(233, 233, 65));
@@ -234,7 +237,7 @@ protected:
         for(int i = 0; i < (int)fires.size(); i++) {
             Fire* fire = fires[i];
             QPen pen;
-            pen.setWidth(1);
+            pen.setWidth(2);
             pen.setColor(QColor(50, 160, 67));
             painter.setPen(pen);
             for(auto line : fire->commandLines) {
@@ -262,14 +265,14 @@ protected:
     // 传感器向处理机发送信息
     void sendInfo(QRect *sensor, QRect *processor, Fire *fire) {
         double x1 = sensor->center().x(), y1 = sensor->center().y();
-        while(dis(x1, y1, processor->x(), processor->y()) > SendRange) {
-            double d2p = dis(x1, y1, processor->x(), processor->y());
+        while(dis(x1, y1, processor->x()+ ProcessorWidth, processor->y()+ ProcessorHeight) > SendRange) {
+            double d2p = dis(x1, y1, processor->x()+ ProcessorWidth, processor->y()+ ProcessorHeight);
             double x = x1, y = y1;
             for(WaterGun * waterGun : waterGuns) {
                 double x2 = waterGun->X + GunSize / 2, y2 = waterGun->Y + GunSize / 2;
                 double d = dis(x1, y1, x2, y2);
-                if(d < SendRange && dis(x2, y2, processor->x(), processor->y()) < d2p) {
-                    d2p = dis(x2, y2, processor->x(), processor->y());
+                if(d < SendRange && dis(x2, y2, processor->x()+ ProcessorWidth, processor->y()+ ProcessorHeight) < d2p) {
+                    d2p = dis(x2, y2, processor->x()+ ProcessorWidth, processor->y()+ ProcessorHeight);
                     x = x2, y = y2;
                 }
             }
@@ -295,7 +298,7 @@ protected:
     }
 
     // 处理机向水枪发送指令
-    void sendCommand(QRect *Processor, WaterGun *tarWaterGun, Fire *fire){
+    bool sendCommand(QRect *Processor, WaterGun *tarWaterGun, Fire *fire){
         double x1 = Processor->center().x(), y1 = Processor->center().y();
         while(dis(x1, y1, tarWaterGun->X + GunSize / 2, tarWaterGun->Y + GunSize / 2) > SendRange) {
             double d2g = dis(x1, y1, tarWaterGun->X + GunSize / 2, tarWaterGun->Y + GunSize / 2);
@@ -309,8 +312,7 @@ protected:
                 }
             }
             if(x1 == x && y1 == y) { // 不可达
-                cout << x << " " << y << endl;
-                return;
+                return false;
             }
             QLine *line = new QLine(x1, y1, x, y);
             fire->commandLines.push_back(line);
@@ -318,6 +320,7 @@ protected:
         }
         QLine *line = new QLine(x1, y1, tarWaterGun->X + GunSize / 2, tarWaterGun->Y + GunSize / 2);
         fire->commandLines.push_back(line);
+        return true;
     }
 
     // 水枪灭火
@@ -335,18 +338,21 @@ protected:
                     isLineRectOverlap(lineF, bottomLeftRectF) || isLineRectOverlap(lineF, bottomRightRectF)) {
                         continue;
                 }
+                int flag;
                 if(waterGun->belongProcessor == 1) {
-                    sendCommand(topLeftProcessor, waterGun, fire);
+                    flag = sendCommand(topLeftProcessor, waterGun, fire);
                 } else if(waterGun->belongProcessor == 2) {
-                    sendCommand(topRightProcessor, waterGun, fire);
+                    flag = sendCommand(topRightProcessor, waterGun, fire);
                 } else if(waterGun->belongProcessor == 3) {
-                    sendCommand(bottomLeftProcessor, waterGun, fire);
+                    flag = sendCommand(bottomLeftProcessor, waterGun, fire);
                 } else if(waterGun->belongProcessor == 4) {
-                    sendCommand(bottomRightProcessor, waterGun, fire);
+                    flag = sendCommand(bottomRightProcessor, waterGun, fire);
                 }
-                QLine *line = new QLine(x1, y1, x2, y2);
-                waterGun->state = Attack;
-                fire->attackLines.push_back(line);
+                if(flag) {
+                    QLine *line = new QLine(x1, y1, x2, y2);
+                    waterGun->state = Attack;
+                    fire->attackLines.push_back(line);
+                }
             }
         }
     }
