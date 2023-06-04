@@ -7,6 +7,7 @@
 #include <cmath>
 #include <QMessageBox>
 #include <iostream>
+#include <algorithm>
 using namespace std;
 
 // ############## Edit ##############
@@ -187,7 +188,6 @@ public slots:
                 continue;
             }
             if(fire->attackLines.size() > SuppressNeed){
-                cout << fire->attackLines.size() - 1 << endl;
                 if(fire->color == Red)
                     fire->color = Blue;
                 else if(fire->color == Blue)
@@ -379,6 +379,7 @@ protected:
         for(WaterGun *waterGun : waterGuns) {
             double x2 = waterGun->X + GunSize / 2, y2 = waterGun->Y + GunSize / 2;
             if(dis(x1, y1, x2, y2) < AttackRange && waterGun->state == Idle) {
+                // 检查水枪是否被墙壁挡住
                 QLineF lineF = QLineF(x1, y1, x2, y2);
                 QRectF topLeftRectF = QRectF(topLeftRect->x(), topLeftRect->y(), topLeftRect->width(), topLeftRect->height());
                 QRectF topRightRectF = QRectF(topRightRect->x(), topRightRect->y(), topRightRect->width(), topRightRect->height());
@@ -388,7 +389,7 @@ protected:
                     isLineRectOverlap(lineF, bottomLeftRectF) || isLineRectOverlap(lineF, bottomRightRectF)) {
                         continue;
                 }
-                int flag = false;
+                int flag = false; // 指令是否能够送达
                 if(waterGun->belongProcessor == 1) {
                     flag = sendCommand(topLeftProcessor, waterGun, fire);
                 } else if(waterGun->belongProcessor == 2) {
@@ -404,6 +405,41 @@ protected:
                     fire->attackLines.push_back(line);
                 }
             }
+        }
+        // 强制调度水枪压制
+        while(fire->attackLines.size() < SuppressNeed) {
+            // 按attackLines的长度排序从大到小
+            bool breakFlag = false;
+            sort(fires.begin(), fires.end(), [](Fire *a, Fire *b) {
+                return a->attackLines.size() > b->attackLines.size();
+            });
+            // 从占用最多资源的火焰中分取一个可达水枪
+            for(vector<Fire*>::iterator it_fire = fires.begin(); it_fire != fires.end(); it_fire ++) {
+                if((*it_fire)->attackLines.size() <= SuppressNeed) return; // 没有资源压制
+                for(vector<QLine*>::iterator it_line = (*it_fire)->attackLines.begin(); it_line != (*it_fire)->attackLines.end(); it_line ++) {
+                    double x2 = (*it_line)->x2(), y2 = (*it_line)->y2();
+                    if(dis(x1, y1, x2, y2) < AttackRange){
+                        // 检查水枪是否被墙壁挡住
+                        QLineF lineF = QLineF(x1, y1, x2, y2);
+                        QRectF topLeftRectF = QRectF(topLeftRect->x(), topLeftRect->y(), topLeftRect->width(), topLeftRect->height());
+                        QRectF topRightRectF = QRectF(topRightRect->x(), topRightRect->y(), topRightRect->width(), topRightRect->height());
+                        QRectF bottomLeftRectF = QRectF(bottomLeftRect->x(), bottomLeftRect->y(), bottomLeftRect->width(), bottomLeftRect->height());
+                        QRectF bottomRightRectF = QRectF(bottomRightRect->x(), bottomRightRect->y(), bottomRightRect->width(), bottomRightRect->height());
+                        if(isLineRectOverlap(lineF, topLeftRectF) || isLineRectOverlap(lineF, topRightRectF) || \
+                            isLineRectOverlap(lineF, bottomLeftRectF) || isLineRectOverlap(lineF, bottomRightRectF)) {
+                                continue;
+                        }
+                        QLine *line = new QLine(x1, y1, x2, y2);
+                        (*it_fire)->attackLines.erase(it_line);
+                        fire->attackLines.push_back(line);
+                        // 取到资源后退出内层循环
+                        breakFlag = true;
+                        break;
+                    }
+                }
+                if(breakFlag) break;
+            }
+        // 
         }
     }
 
