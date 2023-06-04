@@ -13,6 +13,11 @@ using namespace std;
 #define HorizonNum 8
 #define VerticalNum 6
 
+#define ProcessorWidth 50
+#define ProcessorHeight 20
+#define ProcessorOffsetV 50
+#define ProcessorOffsetH 100
+
 class WaterGun : public QWidget {
 public:
     WaterGun(QWidget *parent = nullptr) : QWidget(parent) {
@@ -55,19 +60,19 @@ public:
         bottomRightRect = new QRect(centerX + corridorWidth / 2, centerY + corridorWidth / 2, centerX - corridorWidth / 2, centerY - corridorWidth / 2);  
 
         int rectCenterX, rectCenterY;  
-        int processorWidth = 80;  
-        int processorHeight = 40;  
-        rectCenterX = topLeftRect->center().x();  
-        rectCenterY = topLeftRect->center().y();  
+        int processorWidth = ProcessorWidth;  
+        int processorHeight = ProcessorHeight;;  
+        rectCenterX = topLeftRect->right() - ProcessorOffsetH;
+        rectCenterY = topLeftRect->top() + ProcessorOffsetV;  
         topLeftProcessorRect = new QRect(rectCenterX - processorWidth / 2, rectCenterY - processorHeight / 2, processorWidth, processorHeight);  
-        rectCenterX = topRightRect->center().x();  
-        rectCenterY = topRightRect->center().y();  
+        rectCenterX = topRightRect->left() + ProcessorOffsetH;
+        rectCenterY = topRightRect->top() + ProcessorOffsetV;
         topRightProcessorRect = new QRect(rectCenterX - processorWidth / 2, rectCenterY - processorHeight / 2, processorWidth, processorHeight);  
-        rectCenterX = bottomLeftRect->center().x();  
-        rectCenterY = bottomLeftRect->center().y();  
+        rectCenterX = bottomLeftRect->right() - ProcessorOffsetH;
+        rectCenterY = bottomLeftRect->bottom() - ProcessorOffsetV;
         bottomLeftProcessorRect = new QRect(rectCenterX - processorWidth / 2, rectCenterY - processorHeight / 2, processorWidth, processorHeight);  
-        rectCenterX = bottomRightRect->center().x();  
-        rectCenterY = bottomRightRect->center().y();  
+        rectCenterX = bottomRightRect->left() + ProcessorOffsetH;
+        rectCenterY = bottomRightRect->bottom() - ProcessorOffsetV;
         bottomRightProcessorRect = new QRect(rectCenterX - processorWidth / 2, rectCenterY - processorHeight / 2, processorWidth, processorHeight);  
 
         // 在横纵两条走廊尽头各添加一个小矩形        
@@ -140,6 +145,7 @@ protected:
         painter.drawRect(*topRightProcessorRect);  
         painter.drawRect(*bottomLeftProcessorRect);  
         painter.drawRect(*bottomRightProcessorRect);  
+        painter.setFont(QFont("Arial", 6));
         painter.drawText(*topLeftProcessorRect, Qt::AlignCenter, "Processor-1");  
         painter.drawText(*topRightProcessorRect, Qt::AlignCenter, "Processor-2");  
         painter.drawText(*bottomLeftProcessorRect, Qt::AlignCenter, "Processor-3");  
@@ -160,6 +166,7 @@ protected:
             painter.drawEllipse(waterGun->X, waterGun->Y, waterGun->size, waterGun->size);
         }
 
+        // 绘制火焰
         painter.setBrush(Qt::red);
         painter.setPen(Qt::yellow);
         for(int i = 0; i < (int)fires.size(); i++) {
@@ -169,6 +176,7 @@ protected:
     }
 
     void mousePressEvent(QMouseEvent *event) override {
+        // 鼠标左键点击时，创建火焰对象
         if(event->button() == Qt::LeftButton){
             int x = event->position().x(), y = event->position().y();
             if(topLeftRect->contains(x, y) || topRightRect->contains(x, y) || \
