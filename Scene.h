@@ -12,7 +12,7 @@ using namespace std;
 // ############## Edit ##############
 
 #define GunSize 10
-#define FireSize 10
+#define FireSize 20
 #define SensorSize 20
 
 #define HorizonNum 8
@@ -26,10 +26,16 @@ using namespace std;
 #define SendRange 230
 #define AttackRange 150
 
+#define FireStrength 50
+#define SuppressNeed 2
+
 // ##################################
 
 #define Idle 0
 #define Attack 1
+
+#define Blue 0
+#define Red  1
 
 class WaterGun : public QWidget {
 public:
@@ -51,17 +57,22 @@ class Fire : public QWidget {
 public:
     Fire(QWidget *parent = nullptr) : QWidget(parent) {
         size = FireSize;
+        strength = FireStrength;
+        color = Red;
     }
 
 public:
     int X;
     int Y;
     int size;
+    int color;
 
     vector<QLine*> detectLines;
     vector<QLine*> infoLines;
     vector<QLine*> commandLines;
     vector<QLine*> attackLines;
+
+    int strength;
 };
 
 class Scene : public QWidget {
@@ -138,9 +149,9 @@ public:
         // track mouse
         setMouseTracking(true);
 
-        // timer = new QTimer(this);
-        // connect(timer, &QTimer::timeout, this, &Scene::running);
-        // timer->start(1000);
+        timer = new QTimer(this);
+        connect(timer, &QTimer::timeout, this, &Scene::running);
+        timer->start(500);
     }
 
     ~Scene() {
@@ -150,10 +161,44 @@ public:
 public slots:
 
     void running() {
-
+        for(int i = 0; i < (int)fires.size(); i++) {
+            Fire* fire = fires[i];
+            if(fire->attackLines.size() > SuppressNeed)
+            fire->strength -= (fire->attackLines.size() - SuppressNeed);
+            if(fire->strength <= 0) {
+                for(auto line : fire->detectLines) delete(line);
+                for(auto line : fire->infoLines) delete(line);
+                for(auto line : fire->commandLines) {
+                    for(auto waterGun : waterGuns) {
+                        if(waterGun->state == Attack && waterGun->X + GunSize / 2 == line->x2() && waterGun->Y + GunSize / 2 == line->y2()) {
+                            waterGun->state = Idle;
+                        }
+                    }
+                    delete(line);
+                }
+                for(auto line : fire->attackLines) delete(line);
+                fires.erase(fires.begin() + i);
+                // 更新调度
+                for(int j = 0; j < (int)fires.size(); j++) {
+                    Fire* fire = fires[j];
+                    detectFire(fire);
+                    putFire(fire);
+                }
+                continue;
+            }
+            if(fire->attackLines.size() > SuppressNeed){
+                cout << fire->attackLines.size() - 1 << endl;
+                if(fire->color == Red)
+                    fire->color = Blue;
+                else if(fire->color == Blue)
+                    fire->color = Red;
+            }
+        }
+        update();
     }
 
 protected:
+// ###################### 绘制 #####################
     void paintEvent(QPaintEvent *event) override {
         Q_UNUSED(event);
 
@@ -198,10 +243,13 @@ protected:
         }
 
         // 绘制火焰
-        painter.setBrush(Qt::red);
         painter.setPen(Qt::yellow);
         for(int i = 0; i < (int)fires.size(); i++) {
             Fire* fire = fires[i];
+            if(fire->color == Blue)
+                painter.setBrush(Qt::blue);
+            else if(fire->color == Red)
+                painter.setBrush(Qt::red);
             painter.drawEllipse(fire->X, fire->Y, fire->size, fire->size);
         }
 
@@ -250,13 +298,15 @@ protected:
             Fire* fire = fires[i];
             QPen pen;
             pen.setWidth(2);
-            pen.setColor(QColor(156, 220, 255));
+            pen.setColor(Qt::blue);
             painter.setPen(pen);
             for(auto line : fire->attackLines) {
                 painter.drawLine(*line);
             }
         }
     }
+
+// ##################################################
 
     double dis(double x1, double y1, double x2, double y2) {
         return sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
@@ -338,7 +388,7 @@ protected:
                     isLineRectOverlap(lineF, bottomLeftRectF) || isLineRectOverlap(lineF, bottomRightRectF)) {
                         continue;
                 }
-                int flag;
+                int flag = false;
                 if(waterGun->belongProcessor == 1) {
                     flag = sendCommand(topLeftProcessor, waterGun, fire);
                 } else if(waterGun->belongProcessor == 2) {
