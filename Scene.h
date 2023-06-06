@@ -6,6 +6,7 @@
 #include <QPen>
 #include <cmath>
 #include <QMessageBox>
+#include <QFont>
 #include <iostream>
 #include <algorithm>
 using namespace std;
@@ -38,21 +39,9 @@ using namespace std;
 #define Blue 0
 #define Red  1
 
-class WaterGun : public QWidget {
-public:
-    WaterGun(int belong, QWidget *parent = nullptr) : QWidget(parent), belongProcessor(belong) {
-        size = GunSize;
-        state = Idle;
-    }
-
-public:
-    int X;
-    int Y;
-    int state;
-    int size;
-
-    int belongProcessor;
-};
+#define Clear 0
+#define Controllable 1
+#define Uncontrollable 2
 
 class Fire : public QWidget {
 public:
@@ -76,10 +65,61 @@ public:
     int strength;
 };
 
+class InfoWidget : public QWidget {
+public:
+    InfoWidget(vector<Fire*> &fires, QWidget *parent = nullptr) : QWidget(parent), fires(fires) {
+        state = Clear;
+    }
+protected:
+    void paintEvent(QPaintEvent *event) override {
+        Q_UNUSED(event)
+
+        int fireNum = fires.size();
+
+        QPainter painter(this);
+        QPen pen;
+        state == Clear ? pen.setColor(Qt::green) : state == Controllable ? pen.setColor(Qt::yellow) : pen.setColor(Qt::red);
+        painter.setPen(pen);
+        QString sstate = state == Clear ? "未检测到火情" : state == Controllable ? "火势处于控制中" : "火势不可控";
+        QString str = QString("FireNum: %1\nState: %2").arg(fireNum).arg(sstate);
+        // 设置字体
+        QFont font;
+        font.setFamily("Microsoft YaHei");
+        font.setPointSize(12);
+        painter.setFont(font);
+        painter.drawText(rect(), Qt::AlignCenter, str);
+    }
+public:
+    vector<Fire*> &fires;
+    int state;
+};
+
+class WaterGun : public QWidget {
+public:
+    WaterGun(int belong, QWidget *parent = nullptr) : QWidget(parent), belongProcessor(belong) {
+        size = GunSize;
+        state = Idle;
+    }
+
+public:
+    int X;
+    int Y;
+    int state;
+    int size;
+
+    int belongProcessor;
+};
+
 class Scene : public QWidget {
 public:
     Scene(QWidget *parent = nullptr) : QWidget(parent) {
         setFixedSize(800, 800);
+        setWindowTitle("仿真灭火网络系统");
+
+        // 信息显示
+        infoWidget = new InfoWidget(fires, this);
+        // 设置窗口在右下角
+        infoWidget->setGeometry(QRect(QPoint(width() - 200, height() - 200), QSize(200, 200)));
 
         int corridorWidth = 100;  // 走廊宽度
         int centerX = width() / 2;  // 获取窗口中心点的 x 坐标
@@ -187,11 +227,28 @@ public slots:
                 }
                 continue;
             }
-            if(fire->attackLines.size() > SuppressNeed){
+            if(fire->attackLines.size() >= SuppressNeed){
                 if(fire->color == Red)
                     fire->color = Blue;
                 else if(fire->color == Blue)
                     fire->color = Red;
+            }
+        }
+        if(fires.size() == 0) {
+            infoWidget->state = Clear;
+        } else {
+            bool flag = true;
+            for(int i = 0; i < (int)fires.size(); i++) {
+                Fire* fire = fires[i];
+                if(fire->attackLines.size() < SuppressNeed) {
+                    flag = false;
+                    break;
+                }
+            }
+            if(flag) {
+                infoWidget->state = Controllable;
+            } else {
+                infoWidget->state = Uncontrollable;
             }
         }
         update();
@@ -525,6 +582,8 @@ private:
 
     vector<WaterGun*> waterGuns;  // 水枪对象数组
     vector<Fire*> fires;  // 火焰对象数组
+
+    InfoWidget *infoWidget;
 
     QTimer *timer;
 };
