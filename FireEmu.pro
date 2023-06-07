@@ -5,7 +5,6 @@
 TEMPLATE = app
 TARGET = FireEmu
 INCLUDEPATH += .
-CONFIG += console
 QT += widgets
 
 # You can make your code fail to compile if you use deprecated APIs.
