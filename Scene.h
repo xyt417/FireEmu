@@ -28,7 +28,7 @@ using namespace std;
 #define SendRange 230
 #define AttackRange 150
 
-#define FireStrength 50
+#define FireStrength 100
 #define SuppressNeed 2
 
 // ##################################
